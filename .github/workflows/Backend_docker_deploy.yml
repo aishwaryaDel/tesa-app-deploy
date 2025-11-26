@@ -35,6 +35,8 @@ jobs:
       DB_SSL: ${{ fromJson(secrets.docker_env).DB_SSL }}
       API_PORT: ${{ fromJson(secrets.docker_env).API_PORT }}
       ACR_NAME: ${{ fromJson(inputs.app_info).acr_name }}
+    outputs:
+      next_version: ${{ steps.get_version.outputs.next_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,13 +58,23 @@ jobs:
         with:
           creds: ${{ secrets.azure_creds }}
 
+      - name: Get current version from Key Vault
+        id: get_version
+        run: |
+          SECRET_NAME="latest-version-${{ fromJson(inputs.app_info).api_app_service_name }}"
+          VERSION=$(az keyvault secret show --vault-name ${{ fromJson(inputs.app_info).key_vault_name }} --name "$SECRET_NAME" --query value -o tsv)
+          echo "Current version: $VERSION"
+          if [ -z "$VERSION" ]; then VERSION=0; fi
+          NEXT_VERSION=$((VERSION + 16))
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
       - name: Build Docker image
         run: |
-          docker build -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ inputs.image_tag }} ./backend
+          docker build -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ steps.get_version.outputs.next_version }} ./backend
 
       - name: Save image as artifact
         run: |
-          docker save $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ inputs.image_tag }} -o /tmp/docker-image.tar
+          docker save $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ steps.get_version.outputs.next_version }} -o /tmp/docker-image.tar
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -76,6 +88,8 @@ jobs:
     needs: build-image
     env:
       ACR_NAME: ${{ fromJson(inputs.app_info).acr_name }}
+    outputs:
+      next_version: ${{ needs.build-image.outputs.next_version }}
     steps:
       - name: Download image artifact
         uses: actions/download-artifact@v4
@@ -95,7 +109,13 @@ jobs:
         run: az acr login --name $ACR_NAME
 
       - name: Push Docker image
-        run: docker push $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ inputs.image_tag }}
+        run: docker push $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ needs.build-image.outputs.next_version }}
+
+      - name: Update version in Key Vault
+        if: success()
+        run: |
+          SECRET_NAME="latest-version-${{ fromJson(inputs.app_info).api_app_service_name }}"
+          az keyvault secret set --vault-name ${{ fromJson(inputs.app_info).key_vault_name }} --name "$SECRET_NAME" --value "${{ needs.build-image.outputs.next_version }}"
 
   # ---------------------- Update Web App ----------------------
   update-webapp:
@@ -116,7 +136,7 @@ jobs:
           az webapp config container set \
             --name $API_APP_SERVICE_NAME \
             --resource-group $APP_RESOURCE_GROUP \
-            --docker-custom-image-name $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ inputs.image_tag }} \
+            --docker-custom-image-name $ACR_NAME.azurecr.io/${{ inputs.image_name }}:${{ needs.push-image.outputs.next_version }} \
             --docker-registry-server-url https://$ACR_NAME.azurecr.io
 
       - name: Restart Web App
