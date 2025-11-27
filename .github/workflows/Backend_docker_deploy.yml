@@ -151,7 +151,7 @@ jobs:
 
       - name: Set Container App Registry Credentials
         run: |
-          az containerapp registry set-credentials \
+          az containerapp registry set \
             --name $API_CONTAINER_APP_NAME \
             --resource-group $APP_RESOURCE_GROUP \
             --server $ACR_NAME.azurecr.io \
