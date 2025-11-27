@@ -23,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UI_APP_SERVICE_NAME: ${{ fromJson(inputs.app_info).ui_app_service_name }}
-      KEY_VAULT_NAME: ${{ fromJson(inputs.app_info).key_vault_name }}
       ACR_NAME: ${{ fromJson(inputs.app_info).acr_name }}
     outputs:
       next_version: ${{ steps.get_version.outputs.next_version }}
@@ -36,15 +35,10 @@ jobs:
         with:
           creds: ${{ secrets.azure_creds }}
 
-      - name: Get current version from Key Vault
+      - name: Set version from GitHub Build ID
         id: get_version
         run: |
-          SECRET_NAME="latest-version-$UI_APP_SERVICE_NAME"
-          VERSION=$(az keyvault secret show --vault-name $KEY_VAULT_NAME --name "$SECRET_NAME" --query value -o tsv)
-          echo "Current version: $VERSION"
-          if [ -z "$VERSION" ]; then VERSION=0; fi
-          NEXT_VERSION=$((VERSION + 1))
-          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "next_version=$GITHUB_RUN_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Build Frontend Docker Image
         run: |
@@ -66,7 +60,6 @@ jobs:
     needs: build-image
     env:
       UI_APP_SERVICE_NAME: ${{ fromJson(inputs.app_info).ui_app_service_name }}
-      KEY_VAULT_NAME: ${{ fromJson(inputs.app_info).key_vault_name }}
       ACR_NAME: ${{ fromJson(inputs.app_info).acr_name }}
     outputs:
       next_version: ${{ needs.build-image.outputs.next_version }}
@@ -92,11 +85,7 @@ jobs:
         run: |
           docker push $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ needs.build-image.outputs.next_version }}
 
-      - name: Update version in Key Vault
-        if: success()
-        run: |
-          SECRET_NAME="latest-version-$UI_APP_SERVICE_NAME"
-          az keyvault secret set --vault-name $KEY_VAULT_NAME --name "$SECRET_NAME" --value "${{ needs.build-image.outputs.next_version }}"
+
 
   # ---------------------- Update Web App ----------------------
   update-webapp:
