@@ -40,9 +40,9 @@ jobs:
         run: |
           echo "next_version=$GITHUB_RUN_NUMBER" >> $GITHUB_OUTPUT
 
-      - name: Build Frontend Docker Image
+      - name: Build frontend docker image
         run: |
-          docker build -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} .
+          docker build -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} ./frontend
 
       - name: Save image as artifact
         run: |
@@ -84,8 +84,6 @@ jobs:
       - name: Push Docker image
         run: |
           docker push $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ needs.build-image.outputs.next_version }}
-
-
 
   # ---------------------- Update Web App ----------------------
   update-webapp:

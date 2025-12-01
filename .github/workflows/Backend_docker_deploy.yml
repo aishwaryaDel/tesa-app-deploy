@@ -61,19 +61,19 @@ jobs:
         run: |
           echo "next_version=$GITHUB_RUN_NUMBER" >> $GITHUB_OUTPUT
 
-      - name: Build Docker image
+      - name: Build backend docker image
         run: |
           docker build -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} ./backend
 
       - name: Save image as artifact
         run: |
-          docker save $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} -o /tmp/docker-image.tar
+          docker save $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} -o /tmp/backend-image.tar
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-image
-          path: /tmp/docker-image.tar
+          name: backend-image
+          path: /tmp/backend-image.tar
 
   # ---------------------- Push Image ----------------------
   push-image:
@@ -88,11 +88,11 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: docker-image
+          name: backend-image
           path: /tmp
 
       - name: Load Docker image
-        run: docker load -i /tmp/docker-image.tar
+        run: docker load -i /tmp/backend-image.tar
 
       - name: Log in to Azure
         uses: azure/login@v1
