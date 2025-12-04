@@ -50,13 +50,13 @@ jobs:
 
       - name: Save image as artifact
         run: |
-          docker save $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} -o /tmp/frontend-image.tar
+          docker save $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} -o /tmp/frontend-image-${{ inputs.environment }}.tar
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-image
-          path: /tmp/frontend-image.tar
+          name: frontend-image-${{ inputs.environment }}
+          path: /tmp/frontend-image-${{ inputs.environment }}.tar
 
   # ---------------------- APPROVAL ----------------------
   approval:
@@ -82,11 +82,11 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: frontend-image
+          name: frontend-image-${{ inputs.environment }}
           path: /tmp
 
       - name: Load Docker image
-        run: docker load -i /tmp/frontend-image.tar
+        run: docker load -i /tmp/frontend-image-${{ inputs.environment }}.tar
 
       - name: Log in to Azure
         uses: azure/login@v1
