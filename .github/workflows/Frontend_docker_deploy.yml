@@ -15,6 +15,8 @@ on:
     secrets:
       azure_creds:
         required: true
+      docker_env:
+        required: true
 
 jobs:
 
@@ -23,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ACR_NAME: ${{ fromJson(inputs.app_info).acr_name }}
+      VITE_API_BASE_URL: ${{ fromJson(secrets.docker_env).VITE_API_BASE_URL }}
     outputs:
       next_version: ${{ steps.get_version.outputs.next_version }}
     steps:
@@ -41,7 +44,9 @@ jobs:
 
       - name: Build frontend docker image
         run: |
-          docker build -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} ./frontend
+          docker build \
+            --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL \
+            -t $ACR_NAME.azurecr.io/${{ inputs.image_name }}:v${{ steps.get_version.outputs.next_version }} .
 
       - name: Save image as artifact
         run: |
