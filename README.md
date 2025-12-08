@@ -67,7 +67,8 @@
  
  ## Example Application Repo
  
- 
+ <img width="1857" height="562" alt="image" src="https://github.com/user-attachments/assets/a6b89a0a-963f-4eb8-aa7d-61a50455cbef" />
+
  See the sample structure in the image above (`ai-hub-reusable-structure`):
  - Has `backend/` and `frontend/` folders
  - Contains `.github/workflows/` with trigger YAML files
